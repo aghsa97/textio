@@ -9,6 +9,7 @@ import (
 	"github.com/nsf/termbox-go"
 )
 
+var mode = 0
 var source_file = ""
 var text_buffer = [][]rune{}
 
@@ -44,6 +45,41 @@ func print_message(col, row int, fg, bg termbox.Attribute, message string) {
 	}
 }
 
+func get_event_key() termbox.Event {
+	event := termbox.PollEvent()
+	return event
+}
+
+func handle_event_key() {
+	key_event := get_event_key()
+
+	if key_event.Type == termbox.EventKey && key_event.Key == termbox.KeyEsc {
+		mode = 0
+	}
+
+	if mode == 0 {
+		switch key_event.Ch {
+		case 'q':
+			termbox.Close()
+			os.Exit(0)
+		case 'e':
+			mode = 1
+		}
+	}
+}
+
+func print_status_bar() {
+	var mode_status string
+	_, row := termbox.Size()
+	if mode == 0 {
+		mode_status = "VIEW: "
+	} else {
+		mode_status = "EDIT: "
+	}
+	message := mode_status + source_file + " lines: " + fmt.Sprintf("%d", len(text_buffer)) + " Press e to edit or q to quit."
+	print_message(0, row-1, termbox.ColorBlack, termbox.ColorWhite, message)
+}
+
 func run_editor() {
 	err := termbox.Init()
 	if err != nil {
@@ -66,15 +102,10 @@ func run_editor() {
 	read_file(source_file)
 
 	for {
-		_, row := termbox.Size()
-		print_message(0, row-1, termbox.ColorBlack, termbox.ColorWhite, "Modifying: "+source_file+" - Ego Editor - Press ESC to quit.")
+		print_status_bar()
 		draw_text_buffer()
 		termbox.Flush()
-		event := termbox.PollEvent()
-		if event.Type == termbox.EventKey && event.Key == termbox.KeyEsc {
-			termbox.Close()
-			break
-		}
+		handle_event_key()
 	}
 }
 
