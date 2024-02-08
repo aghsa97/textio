@@ -11,6 +11,7 @@ import (
 
 var mode = 0
 var source_file = ""
+var curr_row, curr_col int
 var text_buffer = [][]rune{}
 
 func read_file(filename string) {
@@ -60,10 +61,36 @@ func handle_event_key() {
 	if mode == 0 {
 		switch key_event.Ch {
 		case 'q':
+			// save file
+			file, err := os.Create(source_file)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+			for _, line := range text_buffer {
+				file.WriteString(string(line) + "\n")
+			}
+			defer file.Close()
+
 			termbox.Close()
 			os.Exit(0)
 		case 'e':
 			mode = 1
+			termbox.SetCursor(0, len(text_buffer)-1)
+			curr_col = len(text_buffer[len(text_buffer)-1]) - 1
+			curr_row = len(text_buffer) - 1
+		}
+	} else {
+		switch key_event.Key {
+		case termbox.KeySpace:
+			insert_char(' ')
+		case termbox.KeyBackspace2:
+			// delete last character
+			delete_rune()
+		case termbox.KeyEnter:
+			text_buffer = append(text_buffer, []rune{})
+		default:
+			insert_char(key_event.Ch)
 		}
 	}
 }
@@ -78,6 +105,19 @@ func print_status_bar() {
 	}
 	message := mode_status + source_file + " lines: " + fmt.Sprintf("%d", len(text_buffer)) + " Press e to edit or q to quit."
 	print_message(0, row-1, termbox.ColorBlack, termbox.ColorWhite, message)
+	print_message(0, row-2, termbox.ColorBlack, termbox.ColorWhite, fmt.Sprint("current col: ", curr_col, " current row: ", curr_row, text_buffer))
+}
+
+func insert_char(ch rune) {
+	if ch == 0 {
+		return
+	}
+	text_buffer[curr_row] = append(text_buffer[curr_row], ch)
+	curr_col++
+}
+
+func delete_rune() {
+	// delete last character
 }
 
 func run_editor() {
@@ -111,4 +151,5 @@ func run_editor() {
 
 func main() {
 	run_editor()
+	fmt.Print(text_buffer)
 }
