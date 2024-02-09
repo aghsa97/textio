@@ -51,12 +51,22 @@ func get_event_key() termbox.Event {
 	return event
 }
 
+func update_mode(input interface{}) {
+	switch key := input.(type) {
+	case termbox.Event:
+		if key.Type == termbox.EventKey && key.Key == termbox.KeyEsc {
+			mode = 0
+		}
+	case rune:
+		if key == 'e' {
+			mode = 1
+		}
+	}
+}
+
 func handle_event_key() {
 	key_event := get_event_key()
-
-	if key_event.Type == termbox.EventKey && key_event.Key == termbox.KeyEsc {
-		mode = 0
-	}
+	update_mode(key_event)
 
 	if mode == 0 {
 		switch key_event.Ch {
@@ -75,10 +85,14 @@ func handle_event_key() {
 			termbox.Close()
 			os.Exit(0)
 		case 'e':
-			mode = 1
+			update_mode('e')
 			termbox.SetCursor(0, len(text_buffer)-1)
-			curr_col = len(text_buffer[len(text_buffer)-1]) - 1
-			curr_row = len(text_buffer) - 1
+			// curr_row = len(text_buffer) - 1
+			if len(text_buffer[len(text_buffer)-1]) == 0 {
+				curr_col = 0
+			} else {
+				curr_col = len(text_buffer[len(text_buffer)-1]) - 1
+			}
 		}
 	} else {
 		switch key_event.Key {
@@ -93,6 +107,8 @@ func handle_event_key() {
 			insert_char(key_event.Ch)
 		}
 	}
+	update_col_row()
+	update_interface()
 }
 
 func print_status_bar() {
@@ -106,6 +122,16 @@ func print_status_bar() {
 	message := mode_status + source_file + " lines: " + fmt.Sprintf("%d", len(text_buffer)) + " Press e to edit or q to quit."
 	print_message(0, row-1, termbox.ColorBlack, termbox.ColorWhite, message)
 	print_message(0, row-2, termbox.ColorBlack, termbox.ColorWhite, fmt.Sprint("current col: ", curr_col, " current row: ", curr_row, text_buffer))
+	print_message(0, row-3, termbox.ColorBlack, termbox.ColorWhite, fmt.Sprint("length: ", len(text_buffer)))
+}
+
+func update_col_row() {
+	curr_row = len(text_buffer) - 1
+	if len(text_buffer[len(text_buffer)-1]) == 0 {
+		curr_col = 0
+	} else {
+		curr_col = len(text_buffer[len(text_buffer)-1]) - 1
+	}
 }
 
 func insert_char(ch rune) {
@@ -113,11 +139,24 @@ func insert_char(ch rune) {
 		return
 	}
 	text_buffer[curr_row] = append(text_buffer[curr_row], ch)
-	curr_col++
 }
 
 func delete_rune() {
-	// delete last character
+	if curr_col > 0 {
+		text_buffer[curr_row] = text_buffer[curr_row][:len(text_buffer[curr_row])-1]
+	} else if curr_row > 0 {
+		text_buffer = append(text_buffer[:curr_row], text_buffer[curr_row+1:]...)
+	}
+
+}
+
+func update_interface() {
+	termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
+	if curr_col == 0 && len(text_buffer[curr_row]) == 0 {
+		termbox.SetCursor(0, curr_row)
+	} else {
+		termbox.SetCursor(curr_col+1, curr_row)
+	}
 }
 
 func run_editor() {
@@ -151,5 +190,4 @@ func run_editor() {
 
 func main() {
 	run_editor()
-	fmt.Print(text_buffer)
 }
